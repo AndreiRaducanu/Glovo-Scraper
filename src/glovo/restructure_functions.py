@@ -8,7 +8,8 @@ import json
 import datetime
 import threading
 import asyncio
-
+from typing import Dict
+import os
 
 
 
@@ -121,6 +122,8 @@ def get_restaurants_per_page(querystring,headers):
     print("DOG")
     return restaurants_per_page
 
+barrier = threading.Barrier(get_total_pages() + 1)
+
 # loops trough all available restaurants and stores the data in a DataFrame
 def loop_all_pages(headers):
     querystring = {"cacheId": "BUC", "limit": "48", "offset": "0"}
@@ -131,28 +134,26 @@ def loop_all_pages(headers):
     lock = threading.Lock()
 
     def fetch_restaurants(querystring, headers):
-        time.sleep(1)
         restaurants_per_page = get_restaurants_per_page(querystring,headers)
         with lock:
             all_restaurants_list.append(restaurants_per_page)
             print(f"ALL REST LIST {all_restaurants_list}")
+        barrier.wait()
     complete_restaurant_df = pd.DataFrame()
-    threads = []
     for _ in range(get_total_pages()):
     #for _ in range(1):
         offset_value = int(querystring["offset"])
         # replace line with threads for each page and use lock
         thread_per_page = threading.Thread(target=fetch_restaurants, args=(querystring, headers))
         thread_per_page.start()
-        threads.append(thread_per_page)
         # increment offset for next page
         offset_value += 48
         page_count += 1
         querystring["offset"] = str(offset_value)
         print(f"Restaurants page: {page_count}")
-    # Wait for all threads to complete
-    for thread in threads:
-        thread.join()
+    # Wait for threads to complete
+    barrier.wait()
+
     complete_restaurant_df = pd.concat(all_restaurants_list, axis=0, ignore_index=True)
     # convert the 'price' column to numeric data type
     complete_restaurant_df['Delivery_fee'] = pd.to_numeric(complete_restaurant_df['Delivery_fee'])
@@ -160,9 +161,9 @@ def loop_all_pages(headers):
     complete_restaurant_df = complete_restaurant_df.sort_values(by='Delivery_fee', ascending=True)
     # reset index
     complete_restaurant_df = complete_restaurant_df.reset_index(drop=True)
-    complete_restaurant_df.to_csv('stores_sorted.csv', index=True)
+    complete_restaurant_df.to_csv('output/stores_sorted.csv', index=True)
     # REMOVE BF PRODUCTION
-    complete_restaurant_df.to_csv('complete_restaurant_df.csv',index=False)
+    complete_restaurant_df.to_csv('output/complete_restaurant_df.csv',index=False)
     print(complete_restaurant_df)
     return complete_restaurant_df
 
@@ -187,9 +188,7 @@ def get_basket_data(basket_fee_path):
     return basket_min_value, basket_surcharge
 
 
-
 # Classes required for find_combination()
-
 class ProductCombo:
     def __init__(self, name, id, addon_name, addon_id, final_price):
         self.name = name
@@ -197,6 +196,7 @@ class ProductCombo:
         self.addon_name = addon_name
         self.addon_id = addon_id
         self.final_price = final_price
+
 
 class SingleProduct:
     def __init__(self, name, id, price, attributes):
@@ -220,13 +220,13 @@ def find_combination(product_object, basket_min_value, basket_surcharge, deliver
         addon_name = next(iter(product_info))
         addon_price = product_info[addon_name]
         total_product_and_addon = product_price + addon_price
-        
+
         if total_product_and_addon == basket_min_value and total_product_and_addon <= best_total:
             best_total = total_product_and_addon + delivery_fee + SERVICE_FEE
             all_addon_results[addon_id] = best_total
-            #product_and_addon = ProductCombo(product_object.name, product_object.id, addon_name, addon_id, best_total)
-            #return product_and_addon 
-        
+            # product_and_addon = ProductCombo(product_object.name, product_object.id, addon_name, addon_id, best_total)
+            # return product_and_addon
+
         if total_product_and_addon < basket_min_value:
             best_total = total_product_and_addon + basket_surcharge + delivery_fee + SERVICE_FEE
             all_addon_results[addon_id] = best_total
@@ -261,24 +261,22 @@ def get_product_data(restaurant_instance):
     basket_surcharge = restaurant_instance.basket_surcharge
     delivery_fee = restaurant_instance.delivery_fee
     products = restaurant_instance.json_menus
-
-
-    #started editing above
     menu_types = products['data']['body']
     all_final_data = []
     keep_track_of_product_ids_to_avoid_duplicates = set()
 
     for individual_menu in menu_types:
-        
         if individual_menu['type'] != "LABEL":
-            standalone_product = individual_menu['data']['elements'] #this a list of products
+            standalone_product = individual_menu['data']['elements']  # this a list of products
 
             for element in standalone_product:
-                #addons_per_product = {} # empty dict for addons  NOW ITS EVEN WORSE X3 THIS OUTSIDE FOR?maybe it is outside
-                product = element['data']
-                product_name = product['name']
-        
-                #product_description = product['description']
+                # addons_per_product = {} # empty dict for addons  NOW ITS EVEN WORSE X3 THIS OUTSIDE FOR?maybe it is outside
+                try:
+                    product = element['data']
+                    product_name = product['name']
+                except KeyError:
+                    continue
+                # product_description = product['description']
                 if not is_blacklisted(product_name):
                     product_id = product['id']
                     product_price = product['price']
@@ -289,15 +287,14 @@ def get_product_data(restaurant_instance):
                         print("wel")
                     except (IndexError, KeyError):
                         pass
-
-
-                #COMPARE HERE PRICE VS PRODUCT TO SKIP ATTRIB
+                # COMPARE HERE PRICE VS PRODUCT TO SKIP ATTRIB
 
                     if product_price < basket_min_value:
 
-                        attributes = product.get('attributeGroups', []) 
+                        attributes = product.get('attributeGroups', [])
                         # options for each attribute group combined toghether
-                        existing_options = {} #make sure only inside product loop
+                        # existing_options = {} # make sure only inside product loop
+                        existing_options: Dict[int, Dict[str, float]] = {}
                         for option in attributes:
                             options_dictionary = option.get('attributes', [])
                             for addon in options_dictionary:
@@ -312,12 +309,10 @@ def get_product_data(restaurant_instance):
                                 if addon_id not in existing_options:
                                     existing_options[addon_id] = {}
                                     existing_options[addon_id][addon_name] = addon_price
- 
                                 # {4249843938: {'Blat Philadelphia': 11.0}
-                        #print(addons_per_product)
+                        # print(addons_per_product)
 
-                        # here we should call the combination function to get back the combo and the final price
-                        #if product_price < basket_min_value:
+                        # Here we should call the combination function to get back the combo and the final price
                         product_to_pass = SingleProduct(product_name, product_id, product_price, existing_options)
                         final_product_combo = find_combination(product_to_pass, basket_min_value, basket_surcharge, delivery_fee)
                         final_product_name = final_product_combo.name
@@ -328,12 +323,11 @@ def get_product_data(restaurant_instance):
                             "Product_Name": final_product_name,
                             "Product_Id": final_product_id,
                         }
-                        
                         if isinstance(final_product_combo, SingleProduct):
-                            final_price = format(final_product_combo.price, ".2f")
+                            final_price = float(format(final_product_combo.price, ".2f"))
                             restaurant_and_products["Final_Price"] = final_price
                         elif isinstance(final_product_combo, ProductCombo):
-                            final_price = format(final_product_combo.final_price, ".2f")
+                            final_price = float(format(final_product_combo.final_price, ".2f"))
                             final_addon_name = final_product_combo.addon_name
                             final_addon_id = final_product_combo.addon_id
                             restaurant_and_products["Addon_Name"] = final_addon_name
@@ -341,16 +335,14 @@ def get_product_data(restaurant_instance):
                             restaurant_and_products["Final_Price"] = final_price
                         if restaurant_and_products["Product_Id"] not in keep_track_of_product_ids_to_avoid_duplicates:
                             keep_track_of_product_ids_to_avoid_duplicates.add(restaurant_and_products["Product_Id"])
-                            all_final_data.append(restaurant_and_products) # probably responsible for same product with different addons
-                        #maybe move this <- and add comparison for min price 
+                            all_final_data.append(restaurant_and_products)  # probably responsible for same product with different addons
+                        # maybe move this <- and add comparison for min price
                         else:
                             pass
-                            #chose the cheapest product combo 
+                            # chose the cheapest product combo
                     else:
-                        #final_price = format(product_price + delivery_fee + 0.99, ".2f")
                         final_price = product_price + delivery_fee + 0.99
-                        final_price = round(final_price, 2)  # Round to 2 decimal places
-
+                        final_price = round(final_price, 2)
                         final_restaurant_and_products = {
                                 "Restaurant_Name": restaurant_name,
                                 "Restaurant_Id": restaurant_id,
@@ -367,16 +359,15 @@ def get_product_data(restaurant_instance):
         else:
             pass
     final_data = pd.DataFrame(all_final_data)
-    final_data.to_csv("WILL_THIS_WORK.csv", index=False)
-        
+    final_data.to_csv("output/WILL_THIS_WORK.csv", index=False)
     return final_data
 
-#rest_name, product name, total price, volume, raport
-##################
+
 class TrieNode:
     def __init__(self):
         self.children = {}
         self.is_end_of_word = False
+
 
 def build_trie(words):
     root = TrieNode()
@@ -388,6 +379,7 @@ def build_trie(words):
             node = node.children[char]
         node.is_end_of_word = True
     return root
+
 
 def find_partial_matches(node, text, start=0):
     matches = []
@@ -401,27 +393,39 @@ def find_partial_matches(node, text, start=0):
             break
     return matches
 
+
 # Build the trie once from the blacklist
-blacklist = ["gustăr", "sos", "garn", "ketchup", "bere", "drink", "desert", "bauturi", "apa", "aperitive", 
-             "salat", "baut", "energiz", "alcool", "beverage", "side", "inghetata", "băutur", "tea", "refresh", 
-             "milk", "starter", "beer", "soda", "juice", "cafea", "răcor", "cprite", "coca-cola", "cola",
-             "fanta", ""]
-blacklist_drinks = ["dorna", "apa", "suc", "pepsi", "mirinda", "portocale", "7up", "tuborg", 
-                    "heineken", "ayran", "shake", "cafea", "coffe", "espresso", "cappucino", "irish", 
-                    "cocktail", "limonada", "zaganu", "ceai", "apă", "lipton", "vin", "sec", "%", "carlsberg",
-                    "Alc", "7 up", "ursus"]
-blacklist_starters = ["crutoane", "covrig", "pate", "cascaval", "corn", "placinta", "croissant", "iaurt", 
-                      "tortilla", "porumb", "baclava", "mamaliga", "salad", "clatite"]
-blacklist_addons = ["ardei iute", "paine", "lipie crocanta", "bete chopsticks", "chifla", "extra",
-                     "ambalaj", "ardei", "ghimbir", "bagheta simpla", "taxa", "lamaie", "rosie", 
-                     "Lapte condensat", "topping", "cheddar", "stafide", "ulei", "zucchini", 
-                     "rosii", "masline", "alune"]
-blacklist_sauces = ["mujdei", "smantana", "home made sweet chilli", "wasabi", "mustar", "maioneza", 
-                    "usturoi", "dulce acrisor", "sos", "teriaky", "tzatziki", "sweet chili", "sesame",
-                     "ginger", "garlic", "crema", "samurai", "tabasco", "kewpie"]
+blacklist = [
+    "gustăr", "sos", "garn", "ketchup", "bere", "drink", "desert", "bauturi", "apa", "aperitive",
+    "salat", "baut", "energiz", "alcool", "beverage", "side", "inghetata", "băutur", "tea", "refresh",
+    "milk", "starter", "beer", "soda", "juice", "cafea", "răcor", "cprite", "coca-cola", "cola",
+    "fanta"
+    ]
+blacklist_drinks = [
+    "dorna", "apa", "suc", "pepsi", "mirinda", "portocale", "7up", "tuborg",
+    "heineken", "ayran", "shake", "cafea", "coffe", "espresso", "cappucino", "irish",
+    "cocktail", "limonada", "zaganu", "ceai", "apă", "lipton", "vin", "sec", "%", "carlsberg",
+    "Alc", "7 up", "ursus"
+    ]
+blacklist_starters = [
+    "crutoane", "covrig", "pate", "cascaval", "corn", "placinta", "croissant", "iaurt",
+    "tortilla", "porumb", "baclava", "mamaliga", "salad", "clatite"
+    ]
+blacklist_addons = [
+    "ardei iute", "paine", "lipie crocanta", "bete chopsticks", "chifla", "extra",
+    "ambalaj", "ardei", "ghimbir", "bagheta simpla", "taxa", "lamaie", "rosie",
+    "Lapte condensat", "topping", "cheddar", "stafide", "ulei", "zucchini",
+    "rosii", "masline", "alune"
+    ]
+blacklist_sauces = [
+    "mujdei", "smantana", "home made sweet chilli", "wasabi", "mustar", "maioneza",
+    "usturoi", "dulce acrisor", "sos", "teriaky", "tzatziki", "sweet chili", "sesame",
+    "ginger", "garlic", "crema", "samurai", "tabasco", "kewpie"
+    ]
 blacklist_desert = ["panini", "pie", "placinta", "tort", "ecler", "inghetata", "prajitura", "gogosi"]
 blacklist_final = blacklist_drinks + blacklist_starters + blacklist_addons + blacklist_sauces + blacklist
 blacklist_trie = build_trie(blacklist_final)
+
 
 def is_blacklisted(input_string):
     input_string_lower = input_string.lower()
@@ -434,30 +438,12 @@ def is_blacklisted(input_string):
     return False
 
 
-
-
-
-
-
-
-
-
-#################
-def blacklisted_products(title):
-    return False
-    #data of blacklisted products, return true or false
-    #if title.lower() == "bauturi":
-        #pass
-    #blacklisted_products = {"salate", "garnituri", "sos", "inghetata", "desert", "bauturi", "sosuri", "gustari", "bere", "cafea", "beers", "cold drinks"}
-    #if title.lower() in blacklisted_products:
-        #return True
-    #return False
-
 def get_menu_data(access_path, headers):
-    querystring = {"promoListViewWebVariation":"CONTROL"}
+    querystring = {"promoListViewWebVariation": "CONTROL"}
     json_response = requests.request("GET", access_path, headers=headers, params=querystring)
     json_menus = json_response.json()
     return json_menus
+
 
 def type_of_menus(json_menus):
     try:
@@ -465,13 +451,14 @@ def type_of_menus(json_menus):
         if path_to_products == "IMAGE_PREVIEW_CARD" or path_to_products == "PRODUCT_TILE":
             # Menus present
             raise KeyError("Skip cause there are menus")
-        elif  path_to_products == "PRODUCT_ROW" or path_to_products == "LIST" or path_to_products == "COLLECTION_TILE": 
+        elif path_to_products == "PRODUCT_ROW" or path_to_products == "LIST" or path_to_products == "COLLECTION_TILE":
             # No menus
             return 1
         else:
             raise ValueError("Unkown type of restaurant menu")
     except KeyError:
         return 0
+
 
 def get_individual_menu(json_menus):
     # Get a list of paths representing every menu per store
@@ -494,10 +481,11 @@ def get_individual_menu(json_menus):
             key, value = param.split("=")
             querystring_menu[key] = value
         path_to_products = 'https://api.glovoapp.com/v3/' + path_to_products
-        querystring_menu = json.dumps(querystring_menu)
-        path_query_product[path_to_products] = querystring_menu
-    
+        # querystring_menu = json.dumps(querystring_menu)
+        str_of_dict = json.dumps(querystring_menu)
+        path_query_product[path_to_products] = str_of_dict
     return path_query_product
+
 
 # Generator for individual menu
 def fetch_menu_data(request_data, headers):
@@ -510,13 +498,14 @@ def fetch_menu_data(request_data, headers):
         if not is_blacklisted(title):
             yield json_products
 
+
 def fetch_products_df(restaurant_instance):
     product_df = get_product_data(restaurant_instance)
     return product_df
 
 
 def access_restaurant_menu(complete_restaurant_df, headers):
-    querystring = {"promoListViewWebVariation":"CONTROL"}
+    # querystring = {"promoListViewWebVariation":"CONTROL"}
     list_to_store_df_per_menu = []
 
     # Used to call get_product_data for each restaurant
@@ -529,13 +518,16 @@ def access_restaurant_menu(complete_restaurant_df, headers):
             self.delivery_fee = delivery_fee
             self.json_menus = json_menus
 
+    # Make this into a function for get_prod_data threading
     for index, row in complete_restaurant_df.iterrows():
         delivery_fee = float(row['Delivery_fee'])
         store_name = row['Store_name']
         store_id = int(row['Store_id'])
         store_address_id = int(row['Address_id'])
-        access_path = f'https://api.glovoapp.com/v3/stores/' + str(store_id) + '/addresses/' + str(store_address_id) + '/content?promoListViewWebVariation=CONTROL'
-        basket_fee_path = f'https://api.glovoapp.com/v3/stores/' + str(store_id) + '/addresses/' + str(store_address_id) + '/node/store_mbs' 
+        access_path = ('https://api.glovoapp.com/v3/stores/' + str(store_id) + '/addresses/' +
+                       str(store_address_id) + '/content?promoListViewWebVariation=CONTROL')
+        basket_fee_path = ('https://api.glovoapp.com/v3/stores/' + str(store_id) + '/addresses/' +
+                           str(store_address_id) + '/node/store_mbs')
         basket_data = get_basket_data(basket_fee_path)
 
         if basket_data != 1:
@@ -546,7 +538,7 @@ def access_restaurant_menu(complete_restaurant_df, headers):
         restaurant_instance = RestaurantData(store_name, store_id, basket_min_value, basket_surcharge, delivery_fee, json_menus)
 
         if type_of_menus(json_menus) != 0:
-            #product_df = get_product_data(store_name, store_id, basket_min_value, basket_surcharge, delivery_fee, json_menus)
+            # product_df = get_product_data(store_name, store_id, basket_min_value, basket_surcharge, delivery_fee, json_menus)
             product_df = get_product_data(restaurant_instance)
             list_to_store_df_per_menu.append(product_df)
             print(f"No menus for {store_name}")
@@ -559,7 +551,6 @@ def access_restaurant_menu(complete_restaurant_df, headers):
                 menu_df = get_product_data(restaurant_instance_menu)
                 with lock:
                     list_to_store_df_per_menu.append(menu_df)
-            
             threads = []
             for products in fetch_menu_data(request_data, headers):
                 thread = threading.Thread(target=process_product,
@@ -567,137 +558,9 @@ def access_restaurant_menu(complete_restaurant_df, headers):
                                           )
                 thread.start()
                 threads.append(thread)
-            
             for thread in threads:
                 thread.join()
     combined_df_final = pd.concat(list_to_store_df_per_menu, ignore_index=True)
     combined_df_final = combined_df_final.drop_duplicates()
-    combined_df_final.to_csv("final_list.csv", index=False)
+    combined_df_final.to_csv("output/final_list.csv", index=False)
     return combined_df_final
-
-
-
-
-
-# gets json about products and passes the data to get_product_data()
-"""def access_restaurant_menu(complete_restaurant_df, headers):
-    querystring = {"promoListViewWebVariation":"CONTROL"}
-    
-    complete_restaurant_df.to_csv("complete_restaurant_df.csv", index=False)
-    # Empty db to append for final group rest with product
-    list_to_store_df_per_menu = []
-    for index, row in complete_restaurant_df.iterrows():
-        if index >= 200:
-            pass
-        delivery_fee = float(row['Delivery_fee'])
-        store_name = row['Store_name']
-        if store_name == "Chopstix":
-            pass #fml
-
-
-        
-        store_id = int(row['Store_id'])
-        store_address_id = int(row['Address_id'])
-        access_path = f'https://api.glovoapp.com/v3/stores/' + str(store_id) + '/addresses/' + str(store_address_id) + '/content?promoListViewWebVariation=CONTROL'
-        #access_path = 'https://api.glovoapp.com/v3/stores/264271/addresses/416265/content?promoListViewWebVariation=CONTROL'
-        basket_fee_path = f'https://api.glovoapp.com/v3/stores/' + str(store_id) + '/addresses/' + str(store_address_id) + '/node/store_mbs' 
-        #basket_fee_path = 'https://api.glovoapp.com/v3/stores/264271/addresses/416265/node/store_mbs'
-        basket_data = get_basket_data(basket_fee_path)
-        if basket_data != 1:
-            basket_min_value, basket_surcharge = basket_data
-        
-        #back ident
-
-            json_response = requests.request("GET", access_path, headers=headers, params=querystring)
-            json_menus = json_response.json()
-            if store_name == "Chopstix":
-                with open("debug_chopstix.json", "w") as f:
-                    json.dump(json_menus, f)
-            
-            try:
-                # there are no menus just products
-
-                # Check if the products are main products or need to be blacklisted
-
-                #title = json_menus["data"]["body"][0]["data"]["title"]
-                #print(title)
-                #if not blacklisted_products(title):
-
-                path_to_products = json_menus["data"]["body"][0]["data"]["elements"][0]["type"] 
-
-                if path_to_products == "IMAGE_PREVIEW_CARD" or path_to_products == "PRODUCT_TILE":
-                    print(f"Restaurant {store_name} has weird shit")
-                    #skip the entire try block and go to except block
-                    raise KeyError("Skip cause there are menus")
-
-                if path_to_products == "PRODUCT_ROW" or path_to_products == "LIST" or path_to_products == "COLLECTION_TILE": 
-                    print(f"No menu present, getting product data for {store_id}")
-                    product_df = get_product_data(store_name, store_id, basket_min_value, basket_surcharge, delivery_fee, json_menus)
-                    list_to_store_df_per_menu.append(product_df)
-
-                else:
-                    print(path_to_products)
-                    raise ValueError("Issue with no menu present but else")
-                # TODO: REMOVE BF PRODUCTION
-            except KeyError:
-
-                
-
-                # menus present, create request for each menu and extract json
-                print(f"Menus present for {store_id}")
-                paths = [
-                    element["data"]["action"]["data"]["path"]
-                    for item in json_menus["data"]["body"]
-                    if "elements" in item["data"]
-                    for element in item["data"]["elements"]
-                    if "action" in element["data"] and "path" in element["data"]["action"]["data"]
-                ]
-                
-                for path_to_products in paths:
-                    # Extract the query string from the path
-                    query_string = path_to_products.split("?")[1]
-                    # Split the query string into individual parameters
-                    query_params = query_string.split("&")
-                    # Create a dictionary to store the key-value pairs of the query parameters
-                    querystring_menu = {}
-                    # Extract and store the key-value pairs in the dictionary
-                    for param in query_params:
-                        key, value = param.split("=")
-                        querystring_menu[key] = value
-                    path_to_products = 'https://api.glovoapp.com/v3/' + path_to_products
-                    querystring_menu = json.dumps(querystring_menu)
-                    product_data = requests.request("GET", path_to_products, headers=headers, params=querystring_menu)
-                    json_products = product_data.json()
-                    with open("SINGLE_MENU_DEBUG.json", "w") as f:
-                            json.dump(json_products, f)
-
-                    if store_name == "Chopstix":
-                        with open("debug_chopstix_menu.json", "w") as f:
-                            json.dump(json_products, f)
-
-
-                    # Before passing menu to extract data check if the title not blacklisted
-                    title = json_products["data"]["body"][0]["data"]["title"]
-                    #titles.append(title)
-                    if not is_blacklisted(title):
-                        #can try continue instead of not?
-                        #print(f"Not blacklisted {title.lower()}")
-                        menu_df = get_product_data(store_name, store_id, basket_min_value, basket_surcharge, delivery_fee, json_products)
-                        list_to_store_df_per_menu.append(menu_df)
-                        # TODO: REMOVE BF PRODUCTION
-                        with open('products_per_menu', 'w') as file:
-                            json.dump(json_products, file)
-                    #if store_name == "Old Shanghai Restaurant":
-                        #combined_df_final = pd.concat(list_to_store_df_per_menu, ignore_index=True)
-                        #combined_df_final.to_csv("final_list.csv", index=False)
-                        #exit(1)
-                    #break #remove when looping trough all
-            
-            # For each restaurant create new DB with products grouped by restaurant id
-            #break #remove when loop trough all
-        else:
-            pass
-    combined_df_final = pd.concat(list_to_store_df_per_menu, ignore_index=True)
-    combined_df_final = combined_df_final.drop_duplicates()
-    combined_df_final.to_csv("final_list.csv", index=False)
-    return combined_df_final"""

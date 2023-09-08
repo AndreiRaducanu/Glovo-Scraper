@@ -1,8 +1,5 @@
-import requests
-import pandas as pd
 from glovo.restructure_functions import *
 from glovo.credentials import *
-import pandas as pd
 from pymongo import MongoClient
 import time
 
