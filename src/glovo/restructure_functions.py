@@ -2,29 +2,28 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import pandas as pd
-from glovo.credentials import *
-import time
+from glovo.credentials import GLOVO_USERNAME
+from glovo.credentials import GLOVO_PASSWORD
+from glovo.credentials import GLOVO_LAT
+from glovo.credentials import GLOVO_LONG
 import json
 import datetime
 import threading
-import asyncio
 from typing import Dict
-import os
-
 
 
 # get the access token to make requests
 def get_access_token():
     login_url = "https://api.glovoapp.com/oauth/token"
     payload = {
-    'grantType': 'password',
-    'username': GLOVO_USERNAME,
-    'password': GLOVO_PASSWORD
-    }
+        'grantType': 'password',
+        'username': GLOVO_USERNAME,
+        'password': GLOVO_PASSWORD
+        }
     headers = {
-    "glovo-api-version": "14",
-    "glovo-location-city-code": "BUC",
-    }
+        "glovo-api-version": "14",
+        "glovo-location-city-code": "BUC",
+        }
     response = requests.post(login_url, json=payload, headers=headers)
     login_data = response.json()
     if "access" in login_data and "accessToken" in login_data["access"]:
@@ -35,14 +34,16 @@ def get_access_token():
         print(f"Login failed {response}. Unable to get access token.")
         exit()
 
+
 # get user location and add to headers
 def header_location(headers):
-    #get_user_location()
+    # get_user_location()
     latitude = GLOVO_LAT
     longitude = GLOVO_LONG
     headers["Glovo-Delivery-Location-Latitude"] = latitude
     headers["Glovo-Delivery-Location-Longitude"] = longitude
     return headers
+
 
 # covert current time for headers
 def local_datetime_to_milliseconds():
@@ -52,6 +53,7 @@ def local_datetime_to_milliseconds():
     # Convert the timestamp to milliseconds
     timestamp_in_milliseconds = int(timestamp_in_seconds * 1000)
     return str(timestamp_in_milliseconds)
+
 
 # returns integer used for looping trough pages
 def get_total_pages():
@@ -70,14 +72,15 @@ def get_total_pages():
             number = match.group(1)
             return int(number)
 
+
 # returns a DataFrame containing data of all restaurants per one page
-def get_restaurants_per_page(querystring,headers):
-    headers = headers = {
-    "glovo-api-version": "14",
-    "glovo-app-platform": "web",
-    "glovo-delivery-location-accuracy": "0",
-    "glovo-location-city-code": "BUC"
-    }
+def get_restaurants_per_page(querystring, headers):
+    headers = {
+        "glovo-api-version": "14",
+        "glovo-app-platform": "web",
+        "glovo-delivery-location-accuracy": "0",
+        "glovo-location-city-code": "BUC"
+        }
     headers = header_location(headers)
     headers["glovo-delivery-location-timestamp"] = local_datetime_to_milliseconds()
     json_page_url = "https://api.glovoapp.com/v3/feeds/categories/1"
@@ -87,18 +90,18 @@ def get_restaurants_per_page(querystring,headers):
     # create an empty DataFrame that will be used for appending data
     restaurants_per_page = pd.DataFrame()
     for restaurant in json_page['elements']:
-        #check to ensure that the nested keys exist before accessing them
+        # check to ensure that the nested keys exist before accessing them
         if restaurant and restaurant.get("singleData") and restaurant["singleData"].get("storeData") and restaurant["singleData"]["storeData"].get("store"):
             restaurant_path = restaurant["singleData"]["storeData"]["store"]
             store_name = restaurant_path["name"]
             if store_name == "KFC":
                 pass
-            store_url = f'https://glovoapp.com/ro/ro/bucuresti/' + str(restaurant_path["slug"])
+            store_url = 'https://glovoapp.com/ro/ro/bucuresti/' + str(restaurant_path["slug"])
             store_id = int(restaurant_path["id"])
             store_address_id = int(restaurant_path["addressId"])
             is_open = restaurant_path["open"]
             delivery_fee = restaurant_path["serviceFee"]
-            if is_open == False:
+            if is_open is False:
                 print(f"STORE {store_name} IS CLOSED")
             # check for promotions
             try:
@@ -108,21 +111,24 @@ def get_restaurants_per_page(querystring,headers):
                 else:
                     print(f"Unkown promotion for {store_name}")
                     raise TypeError("Unkown promotion")
-            except (IndexError, TypeError) as e:
+            except (IndexError, TypeError):
                 print(f"Restaurant {store_name} has no promotions")
             # create dataframe for current restuarant to be later added to main DF
-            restaurant_df = pd.DataFrame({"Store_name": [store_name], "Store_url": [store_url], "Delivery_fee": [delivery_fee], "Store_id": [store_id], "Address_id": [store_address_id], "Open": [is_open]})
+            restaurant_df = pd.DataFrame({
+                "Store_name": [store_name], "Store_url": [store_url],
+                "Delivery_fee": [delivery_fee], "Store_id": [store_id],
+                "Address_id": [store_address_id], "Open": [is_open]
+               })
             # if the restaurant is closed, drop it from DF
-            restaurant_df = restaurant_df.drop(restaurant_df[restaurant_df["Open"] != True].index)
+            restaurant_df = restaurant_df.drop(restaurant_df[restaurant_df["Open"] is not True].index)
             # Append the current restaurant DataFrame to the main DF
             restaurants_per_page = pd.concat([restaurants_per_page, restaurant_df], ignore_index=True)
-    #TO BE REMOVED BF PRODUCTION
+    # TO BE REMOVED BF PRODUCTION
     """with open('restaurants_per_page.json', 'w') as file:
         json.dump(restaurants_per_page, file)"""
     print("DOG")
     return restaurants_per_page
 
-barrier = threading.Barrier(get_total_pages() + 1)
 
 # loops trough all available restaurants and stores the data in a DataFrame
 def loop_all_pages(headers):
@@ -130,18 +136,19 @@ def loop_all_pages(headers):
     page_count = 0
     # list of DataFrames
     all_restaurants_list = []
-    #create function to append restaurants per page to data list due to threads / using lock to ensure threads dont conflict..
+    # create function to append restaurants per page to data list due to threads / using barrier to ensure threads dont conflict..
+    barrier = threading.Barrier(get_total_pages() + 1)
     lock = threading.Lock()
 
     def fetch_restaurants(querystring, headers):
-        restaurants_per_page = get_restaurants_per_page(querystring,headers)
+        restaurants_per_page = get_restaurants_per_page(querystring, headers)
         with lock:
             all_restaurants_list.append(restaurants_per_page)
             print(f"ALL REST LIST {all_restaurants_list}")
         barrier.wait()
     complete_restaurant_df = pd.DataFrame()
+    # for _ in range(1):
     for _ in range(get_total_pages()):
-    #for _ in range(1):
         offset_value = int(querystring["offset"])
         # replace line with threads for each page and use lock
         thread_per_page = threading.Thread(target=fetch_restaurants, args=(querystring, headers))
@@ -157,15 +164,16 @@ def loop_all_pages(headers):
     complete_restaurant_df = pd.concat(all_restaurants_list, axis=0, ignore_index=True)
     # convert the 'price' column to numeric data type
     complete_restaurant_df['Delivery_fee'] = pd.to_numeric(complete_restaurant_df['Delivery_fee'])
-    # sort by delivery fee 
+    # sort by delivery fee
     complete_restaurant_df = complete_restaurant_df.sort_values(by='Delivery_fee', ascending=True)
     # reset index
     complete_restaurant_df = complete_restaurant_df.reset_index(drop=True)
     complete_restaurant_df.to_csv('output/stores_sorted.csv', index=True)
     # REMOVE BF PRODUCTION
-    complete_restaurant_df.to_csv('output/complete_restaurant_df.csv',index=False)
+    complete_restaurant_df.to_csv('output/complete_restaurant_df.csv', index=False)
     print(complete_restaurant_df)
     return complete_restaurant_df
+
 
 # returns basket min value and basket surcharge if value not met
 def get_basket_data(basket_fee_path):

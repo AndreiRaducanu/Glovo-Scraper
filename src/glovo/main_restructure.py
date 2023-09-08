@@ -1,5 +1,5 @@
-from glovo.restructure_functions import *
-from glovo.credentials import *
+from glovo.restructure_functions import get_access_token, header_location, local_datetime_to_milliseconds, loop_all_pages, access_restaurant_menu
+from glovo.credentials import DB_CONNECTION
 from pymongo import MongoClient
 import time
 
@@ -26,16 +26,15 @@ start_time = time.time()
 restaurants_dataframe = loop_all_pages(headers)
 end_time = time.time()
 elapsed = end_time - start_time
-print(elapsed) #1.72
-#time.sleep(30)
+print(elapsed)  # Average 6 seconds
 
-final_df = access_restaurant_menu(restaurants_dataframe,headers)
+final_df = access_restaurant_menu(restaurants_dataframe, headers)
 final_df['_id'] = final_df.index
 final_df['Final_Price'] = final_df['Final_Price'].astype(float)
 final_df.dropna(subset=['Final_Price'], inplace=True)
 
 final_df = final_df.sort_values(by='Final_Price', ascending=True)
-final_df = final_df.to_dict(orient = "records")
+final_df = final_df.to_dict(orient="records")
 
 connection_string = DB_CONNECTION
 database_name = 'Glovo'
@@ -45,7 +44,3 @@ db = cluster[database_name]
 collection = db[collection_name]
 collection.delete_many({})
 collection.insert_many(final_df)
-
-
-
-
