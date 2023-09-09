@@ -22,18 +22,18 @@ headers = header_location(headers)
 headers["glovo-delivery-location-timestamp"] = local_datetime_to_milliseconds()
 
 # df with all restaurants [loop_all_pages in test mode 1 page] !MODIFY
-start_time = time.time()
+start_pages = time.time()
 restaurants_dataframe = loop_all_pages(headers)
-end_time = time.time()
-elapsed = end_time - start_time
-print(elapsed)  # Average 6 seconds
+end_pages = time.time()
+elapsed = end_pages - start_pages
+print(f"Looping pages took: {elapsed} s")  # Average 6 seconds
 
+start_products = time.time()
 final_df = access_restaurant_menu(restaurants_dataframe, headers)
-final_df['_id'] = final_df.index
-final_df['Final_Price'] = final_df['Final_Price'].astype(float)
-final_df.dropna(subset=['Final_Price'], inplace=True)
-
-final_df = final_df.sort_values(by='Final_Price', ascending=True)
+end_products = time.time()
+elapsed_products = start_products - end_products
+print(f"Looping products took: {elapsed_products} s")  # Average 
+# Convert df to a list of dictionaries for MongoDB export
 final_df = final_df.to_dict(orient="records")
 
 connection_string = DB_CONNECTION

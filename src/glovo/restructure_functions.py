@@ -120,7 +120,7 @@ def get_restaurants_per_page(querystring, headers):
                 "Address_id": [store_address_id], "Open": [is_open]
                })
             # if the restaurant is closed, drop it from DF
-            restaurant_df = restaurant_df.drop(restaurant_df[restaurant_df["Open"] is not True].index)
+            restaurant_df = restaurant_df.drop(restaurant_df[restaurant_df["Open"] != True].index)
             # Append the current restaurant DataFrame to the main DF
             restaurants_per_page = pd.concat([restaurants_per_page, restaurant_df], ignore_index=True)
     # TO BE REMOVED BF PRODUCTION
@@ -144,7 +144,7 @@ def loop_all_pages(headers):
         restaurants_per_page = get_restaurants_per_page(querystring, headers)
         with lock:
             all_restaurants_list.append(restaurants_per_page)
-            print(f"ALL REST LIST {all_restaurants_list}")
+            #print(f"ALL REST LIST {all_restaurants_list}")
         barrier.wait()
     complete_restaurant_df = pd.DataFrame()
     # for _ in range(1):
@@ -173,7 +173,6 @@ def loop_all_pages(headers):
     complete_restaurant_df.to_csv('output/complete_restaurant_df.csv', index=False)
     print(complete_restaurant_df)
     return complete_restaurant_df
-
 
 # returns basket min value and basket surcharge if value not met
 def get_basket_data(basket_fee_path):
@@ -570,5 +569,10 @@ def access_restaurant_menu(complete_restaurant_df, headers):
                 thread.join()
     combined_df_final = pd.concat(list_to_store_df_per_menu, ignore_index=True)
     combined_df_final = combined_df_final.drop_duplicates()
+    # Need unique id for MongoDB
+    combined_df_final['_id'] = combined_df_final.index
+    combined_df_final['Final_Price'] = combined_df_final['Final_Price'].astype(float)
+    combined_df_final.dropna(subset=['Final_Price'], inplace=True)
+    combined_df_final = combined_df_final.sort_values(by='Final_Price', ascending=True)
     combined_df_final.to_csv("output/final_list.csv", index=False)
     return combined_df_final
