@@ -31,8 +31,8 @@ print(f"Looping pages took: {elapsed} s")  # Average 6 seconds
 start_products = time.time()
 final_df = access_restaurant_menu(restaurants_dataframe, headers)
 end_products = time.time()
-elapsed_products = start_products - end_products
-print(f"Looping products took: {elapsed_products} s")  # Average 
+elapsed_products = end_products - start_products
+print(f"Looping products took: {elapsed_products} s")  # Average
 # Convert df to a list of dictionaries for MongoDB export
 final_df = final_df.to_dict(orient="records")
 
