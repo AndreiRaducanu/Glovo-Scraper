@@ -1,4 +1,11 @@
-from glovo.restructure_functions import get_access_token, header_location, local_datetime_to_milliseconds, loop_all_pages, access_restaurant_menu
+from glovo.restructure_functions import (
+    get_access_token,
+    header_location,
+    local_datetime_to_milliseconds,
+    loop_all_pages,
+    access_restaurant_menu,
+    create_directory
+)
 from glovo.credentials import DB_CONNECTION
 from pymongo import MongoClient
 import time
@@ -11,6 +18,9 @@ headers = {
     "glovo-delivery-location-accuracy": "0",
     "glovo-location-city-code": "BUC"
 }
+
+# Create dir for results
+create_directory()
 
 # modify the headers to contain the access token
 headers["authorization"] = get_access_token()

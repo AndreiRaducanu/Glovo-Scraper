@@ -10,6 +10,7 @@ import json
 import datetime
 import threading
 from typing import Dict, List
+import os
 
 
 # get the access token to make requests
@@ -73,6 +74,18 @@ def get_total_pages():
             return int(number)
 
 
+def create_directory():
+    directory_path = "output"
+    if not os.path.exists(directory_path):
+        try:
+            os.makedirs(directory_path)
+            print(f"Directory '{directory_path}' created successfully.")
+        except OSError as e:
+            print(f"Error creating directory '{directory_path}': {e}")
+    else:
+        print(f"Directory '{directory_path}' already exists.")
+
+
 # returns a DataFrame containing data of all restaurants per one page
 def get_restaurants_per_page(querystring, headers):
     headers = {
@@ -123,10 +136,6 @@ def get_restaurants_per_page(querystring, headers):
             restaurant_df = restaurant_df.drop(restaurant_df[restaurant_df["Open"] != True].index)  # noqa E712
             # Append the current restaurant DataFrame to the main DF
             restaurants_per_page = pd.concat([restaurants_per_page, restaurant_df], ignore_index=True)
-    # TO BE REMOVED BF PRODUCTION
-    """with open('restaurants_per_page.json', 'w') as file:
-        json.dump(restaurants_per_page, file)"""
-    print("DOG")
     return restaurants_per_page
 
 
@@ -527,6 +536,13 @@ def access_restaurant_menu(complete_restaurant_df, headers):
             self.delivery_fee = delivery_fee
             self.json_menus = json_menus
 
+    def function_per_row(row):
+        pass
+        # format:
+        # from row extract data and create object
+        # pass object in here
+        # if needed make new function after final object created here
+
     # Make this into a function for get_prod_data threading
     for index, row in complete_restaurant_df.iterrows():
         delivery_fee = float(row['Delivery_fee'])
@@ -562,9 +578,10 @@ def access_restaurant_menu(complete_restaurant_df, headers):
                     list_to_store_df_per_menu.append(menu_df)
             threads = []
             for products in fetch_menu_data(request_data, headers):
-                thread = threading.Thread(target=process_product,
-                                          args=(products, store_name, store_id, basket_min_value, basket_surcharge, delivery_fee)
-                                          )
+                thread = threading.Thread(
+                    target=process_product,
+                    args=(products, store_name, store_id, basket_min_value, basket_surcharge, delivery_fee)
+                )
                 thread.start()
                 threads.append(thread)
             for thread in threads:
