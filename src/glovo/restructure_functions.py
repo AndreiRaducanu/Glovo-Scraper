@@ -9,7 +9,7 @@ from glovo.credentials import GLOVO_LONG
 import json
 import datetime
 import threading
-from typing import Dict
+from typing import Dict, List
 
 
 # get the access token to make requests
@@ -120,7 +120,7 @@ def get_restaurants_per_page(querystring, headers):
                 "Address_id": [store_address_id], "Open": [is_open]
                })
             # if the restaurant is closed, drop it from DF
-            restaurant_df = restaurant_df.drop(restaurant_df[restaurant_df["Open"] is not True].index)
+            restaurant_df = restaurant_df.drop(restaurant_df[restaurant_df["Open"] != True].index)  # noqa: E712
             # Append the current restaurant DataFrame to the main DF
             restaurants_per_page = pd.concat([restaurants_per_page, restaurant_df], ignore_index=True)
     # TO BE REMOVED BF PRODUCTION
@@ -136,19 +136,18 @@ def loop_all_pages(headers):
     page_count = 0
     # list of DataFrames
     all_restaurants_list = []
+    total_pages = get_total_pages()
     # create function to append restaurants per page to data list due to threads / using barrier to ensure threads dont conflict..
-    barrier = threading.Barrier(get_total_pages() + 1)
-    lock = threading.Lock()
+    barrier = threading.Barrier(total_pages + 1, timeout=5)
 
     def fetch_restaurants(querystring, headers):
         restaurants_per_page = get_restaurants_per_page(querystring, headers)
-        with lock:
-            all_restaurants_list.append(restaurants_per_page)
-            print(f"ALL REST LIST {all_restaurants_list}")
+        all_restaurants_list.append(restaurants_per_page)
         barrier.wait()
-    complete_restaurant_df = pd.DataFrame()
+
+    threads: List[threading.Thread] = []
     # for _ in range(1):
-    for _ in range(get_total_pages()):
+    for _ in range(total_pages):
         offset_value = int(querystring["offset"])
         # replace line with threads for each page and use lock
         thread_per_page = threading.Thread(target=fetch_restaurants, args=(querystring, headers))
@@ -159,6 +158,8 @@ def loop_all_pages(headers):
         querystring["offset"] = str(offset_value)
         print(f"Restaurants page: {page_count}")
     # Wait for threads to complete
+    for thread in threads:
+        thread.join()
     barrier.wait()
 
     complete_restaurant_df = pd.concat(all_restaurants_list, axis=0, ignore_index=True)
