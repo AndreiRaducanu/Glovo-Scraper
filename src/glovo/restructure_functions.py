@@ -11,6 +11,8 @@ import datetime
 import threading
 from typing import Dict, List
 import os
+import concurrent.futures
+from functools import partial
 
 
 # get the access token to make requests
@@ -522,7 +524,7 @@ def fetch_products_df(restaurant_instance):
     return product_df
 
 
-def access_restaurant_menu(complete_restaurant_df, headers):
+"""def access_restaurant_menu(complete_restaurant_df, headers):
     # querystring = {"promoListViewWebVariation":"CONTROL"}
     list_to_store_df_per_menu = []
 
@@ -536,12 +538,15 @@ def access_restaurant_menu(complete_restaurant_df, headers):
             self.delivery_fee = delivery_fee
             self.json_menus = json_menus
 
-    def function_per_row(row):
-        pass
+    def process_no_menu(restaurant_instance):
+        product_df = get_product_data(restaurant_instance)
+        list_to_store_df_per_menu.append(product_df)
+        print(f"No menus for {store_name}")
         # format:
         # from row extract data and create object
         # pass object in here
         # if needed make new function after final object created here
+
 
     # Make this into a function for get_prod_data threading
     for index, row in complete_restaurant_df.iterrows():
@@ -561,12 +566,18 @@ def access_restaurant_menu(complete_restaurant_df, headers):
             continue
         json_menus = get_menu_data(access_path, headers)
         restaurant_instance = RestaurantData(store_name, store_id, basket_min_value, basket_surcharge, delivery_fee, json_menus)
-
+        threads_menu = []
         if type_of_menus(json_menus) != 0:
             # product_df = get_product_data(store_name, store_id, basket_min_value, basket_surcharge, delivery_fee, json_menus)
-            product_df = get_product_data(restaurant_instance)
-            list_to_store_df_per_menu.append(product_df)
-            print(f"No menus for {store_name}")
+            thread_menu = threading.Thread(
+                target=process_no_menu,
+                args=(restaurant_instance)
+            )
+            thread_menu.start()
+            threads_menu.append(thread_menu)
+            for thread_menu in threads_menu:
+                thread_menu.join()
+
         else:
             request_data = get_individual_menu(json_menus)
             lock = threading.Lock()
@@ -589,6 +600,107 @@ def access_restaurant_menu(complete_restaurant_df, headers):
     combined_df_final = pd.concat(list_to_store_df_per_menu, ignore_index=True)
     combined_df_final = combined_df_final.drop_duplicates()
     # Need unique id for MongoDB
+    combined_df_final['_id'] = combined_df_final.index
+    combined_df_final['Final_Price'] = combined_df_final['Final_Price'].astype(float)
+    combined_df_final.dropna(subset=['Final_Price'], inplace=True)
+    combined_df_final = combined_df_final.sort_values(by='Final_Price', ascending=True)
+    combined_df_final.to_csv("output/final_list.csv", index=False)
+    return combined_df_final"""
+
+
+def better_access_menu(complete_restaurant_df, headers):
+    list_to_store_df_per_menu = []
+    lock = threading.Lock()
+    class RestaurantData:
+        def __init__(self, store_name, store_id, store_address, delivery_fee, access_path, basket_fee_path, basket_min_value=None, basket_surcharge=None, json_menus=None):
+            self.store_name = store_name
+            self.store_id = store_id
+            self.store_address = store_address
+            self.delivery_fee = delivery_fee
+            self.access_path = access_path
+            self.basket_fee_path = basket_fee_path
+            self.basket_min_value = basket_min_value
+            self.basket_surcharge = basket_surcharge
+            self.json_menus = json_menus
+
+    def row_worker(restaurant_instance, result_list, lock):
+        basket_fee_path = restaurant_instance.basket_fee_path
+        basket_data = get_basket_data(basket_fee_path)
+        if basket_data != 1:
+            basket_min_value, basket_surcharge = basket_data
+            restaurant_instance.basket_min_value = basket_min_value
+            restaurant_instance.basket_surcharge = basket_surcharge
+            with lock:
+                result_list.append(restaurant_instance)
+
+    # Appends complete restaurant obj 
+    def json_type_worker(basket_obj, lock):
+        access_path = basket_obj.access_path
+        json_menus = get_menu_data(access_path, headers)  # headers is global for this function
+        if type_of_menus(json_menus) != 0:
+            basket_obj.json_menus = json_menus
+            with lock:
+                restaurants.append(basket_obj)
+        else:
+            request_data = get_individual_menu(json_menus)
+            for products in fetch_menu_data(request_data, headers):
+                basket_obj.json_menus = products
+                with lock:
+                    restaurants.append(basket_obj)
+    # Appends to final df
+    def restaurant_worker(restaurant_obj, lock):
+        product_df = get_product_data(restaurant_obj)
+        with lock:
+            list_to_store_df_per_menu.append(product_df)
+
+    basket_data_obj = []
+    threads = []
+    for _, row in complete_restaurant_df.iterrows():
+        store_name = row['Store_name']
+        store_id = int(row['Store_id'])
+        store_address_id = int(row['Address_id'])
+        delivery_fee = float(row['Delivery_fee'])
+        access_path = ('https://api.glovoapp.com/v3/stores/' + str(store_id) + '/addresses/' +
+                       str(store_address_id) + '/content?promoListViewWebVariation=CONTROL')
+        basket_fee_path = ('https://api.glovoapp.com/v3/stores/' + str(store_id) + '/addresses/' +
+                           str(store_address_id) + '/node/store_mbs')
+        restaurant_instance = RestaurantData(store_name, store_id, store_address_id, delivery_fee, access_path, basket_fee_path)
+        thread = threading.Thread(
+            target=row_worker,
+            args=(restaurant_instance, basket_data_obj, lock)
+        )
+        thread.start()
+        threads.append(thread)
+
+    for thread in threads:
+        thread.join()
+    # Here we should have an obj list that cotains all basket_data
+    threads = []
+    restaurants = []
+    for basket_obj in basket_data_obj:
+        thread = threading.Thread(
+            target=json_type_worker,
+            args=(basket_obj)
+        )
+        thread.start()
+        threads.append(thread)
+    for thread in threads:
+        thread.join()     
+    # Here we should have an obj list that contains all restaurants with their data
+
+    threads = []
+    for restaurant in restaurants:
+        thread = threading.Thread(
+            target=restaurant_worker,
+            args=restaurant
+        )
+        thread.start()
+        threads.append(thread)
+    for thread in threads:
+        thread.join()
+    # Here we should have a df list with all products
+    combined_df_final = pd.concat(list_to_store_df_per_menu, ignore_index=True)
+    combined_df_final = combined_df_final.drop_duplicates()
     combined_df_final['_id'] = combined_df_final.index
     combined_df_final['Final_Price'] = combined_df_final['Final_Price'].astype(float)
     combined_df_final.dropna(subset=['Final_Price'], inplace=True)

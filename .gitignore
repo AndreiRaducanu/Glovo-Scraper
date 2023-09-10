@@ -1,6 +1,7 @@
 # Project files
 output
 credentials.py
+basket_not_present.json
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -8,6 +9,9 @@ __pycache__/
 
 # C extensions
 *.so
+
+# VS code
+.vscode
 
 # Distribution / packaging
 .Python

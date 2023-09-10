@@ -4,7 +4,8 @@ from glovo.restructure_functions import (
     local_datetime_to_milliseconds,
     loop_all_pages,
     access_restaurant_menu,
-    create_directory
+    create_directory,
+    better_access_menu
 )
 from glovo.credentials import DB_CONNECTION
 from pymongo import MongoClient
@@ -39,10 +40,10 @@ elapsed = end_pages - start_pages
 print(f"Looping pages took: {elapsed} s")  # Average 6 seconds
 
 start_products = time.time()
-final_df = access_restaurant_menu(restaurants_dataframe, headers)
+final_df = better_access_menu(restaurants_dataframe, headers)
 end_products = time.time()
 elapsed_products = end_products - start_products
-print(f"Looping products took: {elapsed_products} s")  # Average
+print(f"Looping products took: {elapsed_products} s")  # Average 144s
 # Convert df to a list of dictionaries for MongoDB export
 final_df = final_df.to_dict(orient="records")
 
