@@ -13,6 +13,9 @@ from typing import Dict, List
 import os
 import concurrent.futures
 from functools import partial
+from ratelimit import rate_limited
+import time
+from ratelimit.exception import RateLimitException
 
 
 # get the access token to make requests
@@ -508,6 +511,7 @@ def get_individual_menu(json_menus):
 
 
 # Generator for individual menu
+@rate_limited(1, 2)
 def fetch_menu_data(request_data, headers):
     for key, value in request_data.items():
         path_to_products = key
@@ -633,25 +637,51 @@ def better_access_menu(complete_restaurant_df, headers):
             with lock:
                 result_list.append(restaurant_instance)
 
-    # Appends complete restaurant obj 
+    def exponential_backoff_retry(func, max_retries=5):
+        retries = 0
+        while retries < max_retries:
+            try:
+                return func()
+            except requests.exceptions.TooManyRedirects:
+                retries += 1
+                wait_time = 2 ** retries  # Exponential backoff
+                time.sleep(wait_time)
+        raise Exception("Max retries exceeded")
+
+    # Appends complete restaurant obj
+    MAX_RETRIES = 50
+    INITIAL_BACKOFF = 3  # Start with a 2-second delay
+    #@rate_limited(1, 1)
     def json_type_worker(basket_obj, lock):
-        access_path = basket_obj.access_path
-        json_menus = get_menu_data(access_path, headers)  # headers is global for this function
-        if type_of_menus(json_menus) != 0:
-            basket_obj.json_menus = json_menus
-            with lock:
-                restaurants.append(basket_obj)
-        else:
-            request_data = get_individual_menu(json_menus)
-            for products in fetch_menu_data(request_data, headers):
-                basket_obj.json_menus = products
-                with lock:
-                    restaurants.append(basket_obj)
+        retries = 0
+        backoff = INITIAL_BACKOFF
+        while retries < MAX_RETRIES:
+            try:
+                access_path = basket_obj.access_path
+                json_menus = get_menu_data(access_path, headers)
+                if type_of_menus(json_menus) != 0:
+                    basket_obj.json_menus = json_menus
+                    with lock:
+                        restaurants.append(basket_obj)
+                else:
+                    with lock:
+                        request_data = get_individual_menu(json_menus)
+                        for products in fetch_menu_data(request_data, headers):
+                            basket_obj.json_menus = products
+                            with lock:
+                                restaurants.append(basket_obj)
+            except RateLimitException:
+                time.sleep(backoff)
+                backoff *= 2  # Double the backoff time for the next retry
+                retries += 1
+       
     # Appends to final df
     def restaurant_worker(restaurant_obj, lock):
         product_df = get_product_data(restaurant_obj)
         with lock:
             list_to_store_df_per_menu.append(product_df)
+    
+    
 
     basket_data_obj = []
     threads = []
@@ -680,7 +710,7 @@ def better_access_menu(complete_restaurant_df, headers):
     for basket_obj in basket_data_obj:
         thread = threading.Thread(
             target=json_type_worker,
-            args=(basket_obj)
+            args=(basket_obj, lock)
         )
         thread.start()
         threads.append(thread)
@@ -692,7 +722,7 @@ def better_access_menu(complete_restaurant_df, headers):
     for restaurant in restaurants:
         thread = threading.Thread(
             target=restaurant_worker,
-            args=restaurant
+            args=(restaurant, lock)
         )
         thread.start()
         threads.append(thread)

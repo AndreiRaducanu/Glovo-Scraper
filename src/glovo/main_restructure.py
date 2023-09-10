@@ -3,7 +3,6 @@ from glovo.restructure_functions import (
     header_location,
     local_datetime_to_milliseconds,
     loop_all_pages,
-    access_restaurant_menu,
     create_directory,
     better_access_menu
 )
