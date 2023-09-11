@@ -1,6 +1,6 @@
 import unittest
-from glovo.restructure_functions import find_combination
-from glovo.restructure_functions import SingleProduct
+from glovo.functions import find_combination
+from glovo.functions import SingleProduct
 
 
 class TestOptimizeBasket(unittest.TestCase):
