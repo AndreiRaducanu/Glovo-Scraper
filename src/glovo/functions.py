@@ -1,16 +1,23 @@
+# Standard Library Imports
+import datetime
+import json
+import os
+import threading
+from typing import Dict, List
+
+# Third-Party Library Imports
+import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import re
-import pandas as pd
-from glovo.credentials import GLOVO_USERNAME
-from glovo.credentials import GLOVO_PASSWORD
-from glovo.credentials import GLOVO_LAT
-from glovo.credentials import GLOVO_LONG
-import json
-import datetime
-import threading
-from typing import Dict, List
-import os
+
+# Custom Module Imports
+from glovo.credentials import (
+    GLOVO_USERNAME,
+    GLOVO_PASSWORD,
+    GLOVO_LAT,
+    GLOVO_LONG,
+)
 
 
 # get the access token to make requests
@@ -165,7 +172,7 @@ def loop_all_pages(headers):
         offset_value += 48
         page_count += 1
         querystring["offset"] = str(offset_value)
-        print(f"Restaurants page: {page_count}")
+        print(f"\nRestaurants page: {page_count}")
     # Wait for threads to complete
     for thread in threads:
         thread.join()
@@ -176,10 +183,8 @@ def loop_all_pages(headers):
     complete_restaurant_df['Delivery_fee'] = pd.to_numeric(complete_restaurant_df['Delivery_fee'])
     # sort by delivery fee
     complete_restaurant_df = complete_restaurant_df.sort_values(by='Delivery_fee', ascending=True)
-    # reset index
     complete_restaurant_df = complete_restaurant_df.reset_index(drop=True)
     complete_restaurant_df.to_csv('output/stores_sorted.csv', index=True)
-    # REMOVE BF PRODUCTION
     complete_restaurant_df.to_csv('output/complete_restaurant_df.csv', index=False)
     print(complete_restaurant_df)
     return complete_restaurant_df
@@ -199,7 +204,7 @@ def get_basket_data(basket_fee_path):
         basket_surcharge = json_basket['data']['tracking']['surcharge']
     except KeyError:
         print(basket_fee_path)
-        with open("basket_not_present.json", "w") as f:
+        with open("output/basket_not_present.json", "w") as f:
             json.dump(json_basket, f)
             print("================STORE ISSUE======================")
         return 1
@@ -270,9 +275,8 @@ def find_combination(product_object, basket_min_value, basket_surcharge, deliver
     return product_object
 
 
-# json data is 1 restaurant's products, or maybe menu need to check
+# Takes restaurant object as arg and returns all the products in a pandas DF
 def get_product_data(restaurant_instance):
-
     restaurant_name = restaurant_instance.store_name
     restaurant_id = restaurant_instance.store_id
     basket_min_value = restaurant_instance.basket_min_value
@@ -288,13 +292,12 @@ def get_product_data(restaurant_instance):
             standalone_product = individual_menu['data']['elements']  # this a list of products
 
             for element in standalone_product:
-                # addons_per_product = {} # empty dict for addons  NOW ITS EVEN WORSE X3 THIS OUTSIDE FOR?maybe it is outside
                 try:
                     product = element['data']
                     product_name = product['name']
                 except KeyError:
                     continue
-                # product_description = product['description']
+
                 if not is_blacklisted(product_name):
                     product_id = product['id']
                     product_price = product['price']
@@ -305,10 +308,8 @@ def get_product_data(restaurant_instance):
                         print("wel")
                     except (IndexError, KeyError):
                         pass
-                # COMPARE HERE PRICE VS PRODUCT TO SKIP ATTRIB
 
                     if product_price < basket_min_value:
-
                         attributes = product.get('attributeGroups', [])
                         # options for each attribute group combined toghether
                         # existing_options = {} # make sure only inside product loop
@@ -318,17 +319,12 @@ def get_product_data(restaurant_instance):
                             for addon in options_dictionary:
                                 addon_name = addon['name']
                                 addon_id = addon['id']
-
-                                if addon_id == 2175582976:
-                                    pass
-
                                 addon_price = addon['priceInfo'].get('amount')
 
                                 if addon_id not in existing_options:
                                     existing_options[addon_id] = {}
                                     existing_options[addon_id][addon_name] = addon_price
                                 # {4249843938: {'Blat Philadelphia': 11.0}
-                        # print(addons_per_product)
 
                         # Here we should call the combination function to get back the combo and the final price
                         product_to_pass = SingleProduct(product_name, product_id, product_price, existing_options)
@@ -354,7 +350,6 @@ def get_product_data(restaurant_instance):
                         if restaurant_and_products["Product_Id"] not in keep_track_of_product_ids_to_avoid_duplicates:
                             keep_track_of_product_ids_to_avoid_duplicates.add(restaurant_and_products["Product_Id"])
                             all_final_data.append(restaurant_and_products)  # probably responsible for same product with different addons
-                        # maybe move this <- and add comparison for min price
                         else:
                             pass
                             # chose the cheapest product combo
@@ -373,11 +368,11 @@ def get_product_data(restaurant_instance):
                         all_final_data.append(final_restaurant_and_products)
                 else:
                     pass
-            # If all elements are blacklisted return smtg and handle it
+            # If all elements are blacklisted handle it
         else:
             pass
     final_data = pd.DataFrame(all_final_data)
-    final_data.to_csv("output/WILL_THIS_WORK.csv", index=False)
+    final_data.to_csv("output/last_restaurant_df.csv", index=False)
     return final_data
 
 
@@ -463,6 +458,7 @@ def get_menu_data(access_path, headers):
     return json_menus
 
 
+# Used to determine if restaurant has multiple menus
 def type_of_menus(json_menus):
     try:
         path_to_products = json_menus["data"]["body"][0]["data"]["elements"][0]["type"]
@@ -499,7 +495,6 @@ def get_individual_menu(json_menus):
             key, value = param.split("=")
             querystring_menu[key] = value
         path_to_products = 'https://api.glovoapp.com/v3/' + path_to_products
-        # querystring_menu = json.dumps(querystring_menu)
         str_of_dict = json.dumps(querystring_menu)
         path_query_product[path_to_products] = str_of_dict
     return path_query_product
@@ -523,7 +518,6 @@ def fetch_products_df(restaurant_instance):
 
 
 def access_restaurant_menu(complete_restaurant_df, headers):
-    # querystring = {"promoListViewWebVariation":"CONTROL"}
     list_to_store_df_per_menu = []
 
     # Used to call get_product_data for each restaurant
@@ -536,15 +530,9 @@ def access_restaurant_menu(complete_restaurant_df, headers):
             self.delivery_fee = delivery_fee
             self.json_menus = json_menus
 
-    def function_per_row(row):
-        pass
-        # format:
-        # from row extract data and create object
-        # pass object in here
-        # if needed make new function after final object created here
-
-    # Make this into a function for get_prod_data threading
-    for index, row in complete_restaurant_df.iterrows():
+    # For each restaurant append its products to a dataframe
+    # Experimental branch issue with too many requests per second
+    for _, row in complete_restaurant_df.iterrows():
         delivery_fee = float(row['Delivery_fee'])
         store_name = row['Store_name']
         store_id = int(row['Store_id'])
@@ -593,5 +581,5 @@ def access_restaurant_menu(complete_restaurant_df, headers):
     combined_df_final['Final_Price'] = combined_df_final['Final_Price'].astype(float)
     combined_df_final.dropna(subset=['Final_Price'], inplace=True)
     combined_df_final = combined_df_final.sort_values(by='Final_Price', ascending=True)
-    combined_df_final.to_csv("output/final_list.csv", index=False)
+    combined_df_final.to_csv("output/product_data.csv", index=False)
     return combined_df_final

@@ -1,6 +1,9 @@
 # Project files
 output
 credentials.py
+basket_not_present.json
+# Vs code
+.vscode
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
