@@ -2,3 +2,7 @@
 
 
 ![Tests](https://github.com/AndreiRaducanu/Glovo_App/actions/workflows/tests.yml/badge.svg)
+[![MIT License][license-shield]][license-url]
+
+<!-- MARKDOWN LINKS & IMAGES -->
+[license-url]: https://github.com/AndreiRaducanu/Glovo-Scraper/blob/main/LICENSE.txt
