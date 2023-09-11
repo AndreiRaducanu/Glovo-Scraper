@@ -50,7 +50,7 @@
 </details>
 
 ## About The Project
-[![Sorted data.png][product-screenshot]](https://example.com)
+![Sorted data.png][product-screenshot]
 
 The "Fast Food App Data Scraper" project is a powerful tool designed for efficiently collecting and organizing data from the Glovo application. Whether you're a food enthusiast, a market analyst, or just someone looking for a great meal deal, this project is your go-to solution.
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -79,7 +79,11 @@ The "Fast Food App Data Scraper" project is a powerful tool designed for efficie
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Usage
---
+
+The data stored in the database provides a rich source of information that can be leveraged to perform various queries and analyses. With this data, you can conduct targeted searches to retrieve specific information, such as finding all products with certain keywords or attributes. For instance, if you're interested in identifying all the burger-related items in a restaurant menu, you can perform a query using relevant keywords or filters to retrieve this subset of data.
+
+![MongoDB query.png][burger-screenshot]
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Roadmap
@@ -123,9 +127,11 @@ Project Link: [https://github.com/AndreiRaducanu/Glovo-Scraper](https://github.c
 
 Resources I've found helpful while building this project:
 
-* []()
-* []()
-* []()
+* [How to use requests for JSON calls](https://requests.readthedocs.io/en/latest/user/quickstart/#json-response-content)
+* [Dockerize any application](https://itsromiljain.medium.com/docker-setup-and-dockerize-an-application-5c24a4c8b428)
+* [GitHub Emoji Cheat Sheet](https://www.webfx.com/tools/emoji-cheat-sheet/)
+* [Badges for GitHub](https://shields.io/)
+* [MongoDB Cheat Sheet](https://www.mongodb.com/developer/products/mongodb/cheat-sheet/)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -137,3 +143,4 @@ Resources I've found helpful while building this project:
 [Docker.js]: https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white
 [Docker-url]: https://docs.docker.com/get-started/overview/
 [product-screenshot]: images/sorted_data.PNG
+[burger-screenshot]: images/example_db_search.PNG
