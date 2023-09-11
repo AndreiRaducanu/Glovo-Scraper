@@ -302,7 +302,6 @@ def get_product_data(restaurant_instance):
                     product_price = product['price']
                     try:
                         product_price = product["promotion"]["price"]
-                        print("wel")
                     except (IndexError, KeyError):
                         pass
 
