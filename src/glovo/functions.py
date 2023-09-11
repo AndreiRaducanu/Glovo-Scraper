@@ -20,7 +20,7 @@ from glovo.credentials import (
 )
 
 
-# get the access token to make requests
+# Get the access token to make requests
 def get_access_token():
     login_url = "https://api.glovoapp.com/oauth/token"
     payload = {
@@ -43,7 +43,7 @@ def get_access_token():
         exit()
 
 
-# get user location and add to headers
+# Get user location and add it to headers
 def header_location(headers):
     # get_user_location()
     latitude = GLOVO_LAT
@@ -53,7 +53,7 @@ def header_location(headers):
     return headers
 
 
-# covert current time for headers
+# Covert current time for headers
 def local_datetime_to_milliseconds():
     # Convert the local datetime to a Unix timestamp in seconds
     local_datetime = datetime.datetime.now()
@@ -63,14 +63,13 @@ def local_datetime_to_milliseconds():
     return str(timestamp_in_milliseconds)
 
 
-# returns integer used for looping trough pages
+# Returns integer used for looping trough pages
 def get_total_pages():
     # url that returns HTML
     html_url = "https://glovoapp.com/ro/ro/bucuresti/restaurante_1/"
     response = requests.get(html_url)
     html_content = response.content
     soup = BeautifulSoup(html_content, "html.parser")
-    # search for all elements by class
     elements = soup.find_all(class_="current-page-text")
     # always return the number after 'din'
     for element in elements:
@@ -301,8 +300,6 @@ def get_product_data(restaurant_instance):
                 if not is_blacklisted(product_name):
                     product_id = product['id']
                     product_price = product['price']
-                    if product_id == 9295962991:
-                        pass
                     try:
                         product_price = product["promotion"]["price"]
                         print("wel")
@@ -537,10 +534,13 @@ def access_restaurant_menu(complete_restaurant_df, headers):
         store_name = row['Store_name']
         store_id = int(row['Store_id'])
         store_address_id = int(row['Address_id'])
-        access_path = ('https://api.glovoapp.com/v3/stores/' + str(store_id) + '/addresses/' +
-                       str(store_address_id) + '/content?promoListViewWebVariation=CONTROL')
-        basket_fee_path = ('https://api.glovoapp.com/v3/stores/' + str(store_id) + '/addresses/' +
-                           str(store_address_id) + '/node/store_mbs')
+        access_path = (
+            f'https://api.glovoapp.com/v3/stores/{store_id}/addresses/{store_address_id}/content?promoListViewWebVariation=CONTROL'
+        )
+        basket_fee_path = (
+            f'https://api.glovoapp.com/v3/stores/{store_id}/addresses/{store_address_id}/node/store_mbs'
+        )
+
         basket_data = get_basket_data(basket_fee_path)
 
         if basket_data != 1:
