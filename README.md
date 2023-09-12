@@ -68,16 +68,44 @@ The "Fast Food App Data Scraper" project is a powerful tool designed for efficie
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Getting Started
---
+To get a local copy up and running follow these simple example steps.
 ### Prerequisites
---
+
+Before you can get started with this project, make sure you have the following prerequisites installed on your system:
+
+1. **Docker**: You'll need Docker to create and manage containers for this project. If you don't have Docker installed, you can download and install it from the official Docker website: [Docker Installation Guide](https://docs.docker.com/get-docker/)
+
+2. **pip (Python Package Manager)**: If you plan to use Python-based components or libraries in this project, ensure that `pip` is installed. `pip` is commonly included with Python installations, but you can upgrade it to the latest version using the following command:
+
+  ```bash
+   pip install --upgrade pip
+  ```
 ### Installation
---
+1. Clone the repo:
+   ```sh
+   git clone https://github.com/AndreiRaducanu/Glovo-Scraper.git
+   ```
+2. Install the glovo package:
+   ```sh
+   pip install -e .
+   ```
+
+#### Docker installation
+You'll need to have docker already installed than follow these steps:
+1. Install the latest package (check packages for latest version):
+   ```sh
+   docker pull ghcr.io/andreiraducanu/glovo-scraper:sha-1c15d79
+   ```
+2. Run a container using the image:
+   ```sh
+   docker run -it ghcr.io/andreiraducanu/glovo-scraper:sha-1c15d79
+   ```
+   Use the "-it" flag since you'll need to input credentials
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Usage
 
-The data stored in the database provides a rich source of information that can be leveraged to perform various queries and analyses. With this data, you can conduct targeted searches to retrieve specific information, such as finding all products with certain keywords or attributes. For instance, if you're interested in identifying all the burger-related items in a restaurant menu, you can perform a query using relevant keywords or filters to retrieve this subset of data.
+The data stored in the database provides a rich source of information that can be leveraged to perform various queries and analyses. With this data, you can conduct targeted searches to retrieve specific information, such as finding all products with certain keywords or attributes. For instance, if you're interested in identifying all the **burger-related** items in a restaurant's menu, you can perform a query using relevant keywords or filters to retrieve this subset of data.
 
 ![MongoDB query.png][burger-screenshot]
 
