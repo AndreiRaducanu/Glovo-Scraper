@@ -61,8 +61,6 @@ The "Fast Food App Data Scraper" project is a powerful tool designed for efficie
 
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 
-![Beautiful Soup](https://img.shields.io/badge/Beautiful%20Soup-3776AB?style=for-the-badge&logo=python&logoColor=white)
-
 ![Beautiful Soup](https://img.shields.io/badge/Beautiful%20Soup-000000?style=for-the-badge&logo=python&logoColor=white)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
