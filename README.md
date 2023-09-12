@@ -6,13 +6,9 @@
 
 <br />
 <div align="center">
-
-<h3 align="center">Fast Food App Data Scraper</h3>
-
+  <h3 align="center">Fast Food App Data Scraper</h3>
   <p align="center">
     Glovo-Scraper is a Python project that scrapes data from a popular fast food app, organizes it based on price and location, and then saves it to both CSV and MongoDB for further analysis. This tool allows you to collect valuable data from your favorite fast food restaurants and perform various analyses on it. Ideal for when you want a good meal but don't want to pay more than necessary.
-    <br />
-    <a href="https://github.com/AndreiRaducanu/Glovo-Scraper"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://github.com/AndreiRaducanu/Glovo-Scraper">View Demo</a>
@@ -22,6 +18,7 @@
     <a href="https://github.com/AndreiRaducanu/Glovo-Scraper/issues">Request Feature</a>
   </p>
 </div>
+
 <a name="readme-top"></a>
 <!-- TABLE OF CONTENTS -->
 <details>
