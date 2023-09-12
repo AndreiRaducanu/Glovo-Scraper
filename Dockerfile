@@ -18,6 +18,8 @@ COPY README.md ./
 
 COPY LICENSE.txt ./
 
+COPY images ./
+
 COPY src/glovo src/glovo
 
 RUN pip install -e .

@@ -2,7 +2,7 @@ import os
 
 
 def check_credentials():
-    file_path = "src/glovo/credentials.py"
+    file_path = "Glovo-Scraper/src/glovo/credentials.py"
     if os.path.isfile(file_path):
         print("Credentials.py already exists")
     else:
