@@ -90,7 +90,7 @@ Before you can get started with this project, make sure you have the following p
 
 #### Docker installation
 You'll need to have docker already installed than follow these steps:
-1. Install the latest package (check packages for latest version):
+1. Install the latest package [(check packages for latest version)](https://github.com/users/AndreiRaducanu/packages?repo_name=Glovo-Scraper):
    ```sh
    docker pull ghcr.io/andreiraducanu/glovo-scraper:sha-1c15d79
    ```
