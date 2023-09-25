@@ -1,13 +1,10 @@
 ![Tests](https://github.com/AndreiRaducanu/Glovo_App/actions/workflows/tests.yml/badge.svg)
 [![MIT License][license-shield]][license-url]
 ![Last Commit][last-commit-shield]
-![GitHub repo size](https://img.shields.io/github/repo-size/AndreiRaducanu/Glovo_App)
-![Docker Image Version (latest semver)](https://img.shields.io/docker/v/AndreiRaducanu/Glovo_App?sort=semver)
-![GitHub issues](https://img.shields.io/github/issues/AndreiRaducanu/Glovo_App)
-![GitHub Release](https://img.shields.io/github/release/AndreiRaducanu/Glovo_App)
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/AndreiRaducanu/Glovo_App/workflows)
-![GitHub Top Language](https://img.shields.io/github/languages/top/AndreiRaducanu/Glovo_App)
-![GitHub Release Date](https://img.shields.io/github/release-date/AndreiRaducanu/Glovo_App)
+![GitHub repo size](https://img.shields.io/github/repo-size/AndreiRaducanu/Glovo-Scraper)
+![GitHub issues](https://img.shields.io/github/issues/AndreiRaducanu/Glovo-Scraper)
+![GitHub Top Language](https://img.shields.io/github/languages/top/AndreiRaducanu/Glovo-Scraper)
+
 
 
 
@@ -170,9 +167,9 @@ Resources I've found helpful while building this project:
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
-[license-url]: https://github.com/AndreiRaducanu/Glovo_App/blob/main/LICENSE.txt
-[license-shield]: https://img.shields.io/github/license/AndreiRaducanu/Glovo_App
-[last-commit-shield]: https://img.shields.io/github/last-commit/AndreiRaducanu/Glovo_App/main?style=flat
+[license-url]: https://github.com/AndreiRaducanu/Glovo-Scraper/blob/main/LICENSE.txt
+[license-shield]: https://img.shields.io/github/license/AndreiRaducanu/Glovo-Scraper
+[last-commit-shield]: https://img.shields.io/github/last-commit/AndreiRaducanu/Glovo-Scraper/main?style=flat
 [Docker.js]: https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white
 [Docker-url]: https://docs.docker.com/get-started/overview/
 [product-screenshot]: images/sorted_data.PNG
