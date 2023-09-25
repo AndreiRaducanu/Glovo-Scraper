@@ -4,11 +4,7 @@
 ![GitHub repo size](https://img.shields.io/github/repo-size/AndreiRaducanu/Glovo-Scraper)
 ![GitHub issues](https://img.shields.io/github/issues/AndreiRaducanu/Glovo-Scraper)
 ![GitHub Top Language](https://img.shields.io/github/languages/top/AndreiRaducanu/Glovo-Scraper)
-
-
-
-
-
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/AndreiRaducanu/Glovo-Scraper)
 
 
 <br />
