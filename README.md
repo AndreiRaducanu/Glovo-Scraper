@@ -4,6 +4,15 @@
 ![GitHub repo size](https://img.shields.io/github/repo-size/AndreiRaducanu/Glovo_App)
 ![Docker Image Version (latest semver)](https://img.shields.io/docker/v/AndreiRaducanu/Glovo_App?sort=semver)
 ![GitHub issues](https://img.shields.io/github/issues/AndreiRaducanu/Glovo_App)
+![GitHub Release](https://img.shields.io/github/release/AndreiRaducanu/Glovo_App)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/AndreiRaducanu/Glovo_App/workflows)
+![GitHub Top Language](https://img.shields.io/github/languages/top/AndreiRaducanu/Glovo_App)
+![GitHub Release Date](https://img.shields.io/github/release-date/AndreiRaducanu/Glovo_App)
+
+
+
+
+
 
 <br />
 <div align="center">
