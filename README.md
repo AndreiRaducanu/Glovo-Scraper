@@ -106,7 +106,7 @@ You'll need to have docker already installed than follow these steps:
 
 ## Usage
 
-The data stored in the database provides a rich source of information that can be leveraged to perform various queries and analyses. With this data, you can conduct targeted searches to retrieve specific information, such as finding all products with certain keywords or attributes. For instance, if you're interested in identifying all the **burger-related** items in a restaurant's menu, you can perform a query using relevant keywords or filters to retrieve this subset of data.
+The data stored in the database provides a rich source of information that can be leveraged to perform various queries and analyses. With this data, you can conduct targeted searches to retrieve specific information, such as finding all products with certain keywords or attributes. For instance, if you're interested in identifying all the **burger-related** 🍔 items in a restaurant's menu, you can perform a query using relevant keywords or filters to retrieve this subset of data.
 
 ![MongoDB query.png][burger-screenshot]
 
