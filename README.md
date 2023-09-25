@@ -140,7 +140,7 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 ## Contact
 
-Andrei Raducanu - [@twitter_handle](https://twitter.com/twitter_handle) - raducanuandrei31@gmail.com
+Andrei Raducanu - [LinkedIn](https://www.linkedin.com/in/raducanu-andrei/) - raducanuandrei31@gmail.com
 
 Project Link: [https://github.com/AndreiRaducanu/Glovo-Scraper](https://github.com/AndreiRaducanu/Glovo-Scraper)
 
