@@ -509,7 +509,7 @@ def process_final_dataframe(list_to_store_df_per_menu):
     combined_df_final.dropna(subset=['Final_Price'], inplace=True)
     combined_df_final = combined_df_final.sort_values(by='Final_Price', ascending=True)
     
-    # Reassign _id after sorting
+    # Reassign _id 
     combined_df_final['_id'] = combined_df_final.index
     
     combined_df_final.to_csv("output/product_data.csv", index=False)
