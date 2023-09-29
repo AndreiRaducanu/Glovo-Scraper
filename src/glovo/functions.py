@@ -233,8 +233,8 @@ def find_combination(product_object, basket_min_value, basket_surcharge, deliver
     SERVICE_FEE = 0.99
     product_price = product_object.price
     best_total = product_price + basket_surcharge  # Start with just the current product
-    all_addon_results = {}
-    
+    all_addon_results: Dict[int, float] = {}
+
     for addon_id, product_info in product_object.attributes.items():
         addon_name, addon_price = next(iter(product_info.items()))
         total_product_and_addon = product_price + addon_price
@@ -260,8 +260,9 @@ def find_combination(product_object, basket_min_value, basket_surcharge, deliver
     final_price_product = product_price + basket_surcharge + delivery_fee + SERVICE_FEE
 
     if lowest_value <= final_price_product:
-        lowest_id = min(all_addon_results, key=all_addon_results.get)
-        addon_name, final_price = next(iter(product_object.attributes[lowest_id].items()))
+        lowest_id = [key for key, value in all_addon_results.items() if value == lowest_value][0]
+        data_dict = dict(items2)[lowest_id]
+        addon_name, final_price = next(iter(data_dict.items()))
         combo_object = ProductCombo(product_object.name, product_object.id, addon_name, lowest_id, lowest_value)
         return combo_object
 
@@ -272,19 +273,19 @@ def find_combination(product_object, basket_min_value, basket_surcharge, deliver
 
 # Takes restaurant object as arg and returns all the products in a pandas DF
 def get_product_data(restaurant_instance):
+    # Extract data from the restaurant_instance
     restaurant_name = restaurant_instance.store_name
     restaurant_id = restaurant_instance.store_id
     basket_min_value = restaurant_instance.basket_min_value
     basket_surcharge = restaurant_instance.basket_surcharge
     delivery_fee = restaurant_instance.delivery_fee
-    products = restaurant_instance.json_menus
-    menu_types = products['data']['body']
+    products = restaurant_instance.json_menus['data']['body']
     all_final_data = []
-    keep_track_of_product_ids_to_avoid_duplicates = set()
+    seen_product_ids = set()  # To avoid duplicate product entries
 
-    for individual_menu in menu_types:
+    for individual_menu in products:
         if individual_menu['type'] != "LABEL":
-            standalone_product = individual_menu['data']['elements']  # this a list of products
+            standalone_product = individual_menu['data']['elements']
 
             for element in standalone_product:
                 try:
@@ -293,76 +294,67 @@ def get_product_data(restaurant_instance):
                 except KeyError:
                     continue
 
-                if not is_blacklisted(product_name):
-                    product_id = product['id']
-                    product_price = product['price']
-                    try:
-                        product_price = product["promotion"]["price"]
-                    except (IndexError, KeyError):
-                        pass
+                if is_blacklisted(product_name):
+                    continue
 
-                    if product_price < basket_min_value:
-                        attributes = product.get('attributeGroups', [])
-                        # options for each attribute group combined toghether
-                        # existing_options = {} # make sure only inside product loop
-                        existing_options: Dict[int, Dict[str, float]] = {}
-                        for option in attributes:
-                            options_dictionary = option.get('attributes', [])
-                            for addon in options_dictionary:
-                                addon_name = addon['name']
-                                addon_id = addon['id']
-                                addon_price = addon['priceInfo'].get('amount')
+                product_id = product['id']
+                original_product_price = product.get("promotion", {}).get("price", product['price'])
 
-                                if addon_id not in existing_options:
-                                    existing_options[addon_id] = {}
-                                    existing_options[addon_id][addon_name] = addon_price
-                                # {4249843938: {'Blat Philadelphia': 11.0}
+                if original_product_price < basket_min_value:
+                    attributes = product.get('attributeGroups', [])
+                    existing_options: Dict[int, Dict[str, float]] = {}
 
-                        # Here we should call the combination function to get back the combo and the final price
-                        product_to_pass = SingleProduct(product_name, product_id, product_price, existing_options)
-                        final_product_combo = find_combination(product_to_pass, basket_min_value, basket_surcharge, delivery_fee)
-                        final_product_name = final_product_combo.name
-                        final_product_id = final_product_combo.id
-                        restaurant_and_products = {
-                            "Restaurant_Name": restaurant_name,
-                            "Restaurant_Id": restaurant_id,
-                            "Product_Name": final_product_name,
-                            "Product_Id": final_product_id,
-                        }
-                        if isinstance(final_product_combo, SingleProduct):
-                            final_price = float(format(final_product_combo.price, ".2f"))
-                            restaurant_and_products["Final_Price"] = final_price
-                        elif isinstance(final_product_combo, ProductCombo):
-                            final_price = float(format(final_product_combo.final_price, ".2f"))
-                            final_addon_name = final_product_combo.addon_name
-                            final_addon_id = final_product_combo.addon_id
-                            restaurant_and_products["Addon_Name"] = final_addon_name
-                            restaurant_and_products["Addon_Id"] = final_addon_id
-                            restaurant_and_products["Final_Price"] = final_price
-                        if restaurant_and_products["Product_Id"] not in keep_track_of_product_ids_to_avoid_duplicates:
-                            keep_track_of_product_ids_to_avoid_duplicates.add(restaurant_and_products["Product_Id"])
-                            all_final_data.append(restaurant_and_products)  # probably responsible for same product with different addons
-                        else:
-                            pass
-                            # chose the cheapest product combo
-                    else:
-                        final_price = product_price + delivery_fee + 0.99
-                        final_price = round(final_price, 2)
-                        final_restaurant_and_products = {
-                                "Restaurant_Name": restaurant_name,
-                                "Restaurant_Id": restaurant_id,
-                                "Product_Name": product_name,
-                                "Product_Id": product_id,
-                                "Addon_Name": None,
-                                "Addon_Id": None,
-                                "Final_Price": final_price
-                            }
-                        all_final_data.append(final_restaurant_and_products)
+                    for option in attributes:
+                        options_dictionary = option.get('attributes', [])
+
+                        for addon in options_dictionary:
+                            addon_name = addon['name']
+                            addon_id = addon['id']
+                            addon_price = addon['priceInfo'].get('amount')
+
+                            if addon_id not in existing_options:
+                                existing_options[addon_id] = {}
+                            existing_options[addon_id][addon_name] = addon_price
+
+                    product_to_pass = SingleProduct(product_name, product_id, original_product_price, existing_options)
+                    final_product_combo = find_combination(product_to_pass, basket_min_value, basket_surcharge, delivery_fee)
+                    final_product_name = final_product_combo.name
+                    final_product_id = final_product_combo.id
+                    product_entry = {
+                        "Restaurant_Name": restaurant_name,
+                        "Restaurant_Id": restaurant_id,
+                        "Product_Name": final_product_name,
+                        "Product_Id": final_product_id,
+                    }
+
+                    if isinstance(final_product_combo, SingleProduct):
+                        final_price = round(final_product_combo.price, 2)
+                        product_entry["Final_Price"] = final_price
+                    elif isinstance(final_product_combo, ProductCombo):
+                        final_price = round(final_product_combo.final_price, 2)
+                        final_addon_name = final_product_combo.addon_name
+                        final_addon_id = final_product_combo.addon_id
+                        product_entry["Addon_Name"] = final_addon_name
+                        product_entry["Addon_Id"] = final_addon_id
+                        product_entry["Final_Price"] = final_price
+
+                    if product_entry["Product_Id"] not in seen_product_ids:
+                        seen_product_ids.add(product_entry["Product_Id"])
+                        all_final_data.append(product_entry)
+
                 else:
-                    pass
-            # If all elements are blacklisted handle it
-        else:
-            pass
+                    final_price = round(original_product_price + delivery_fee + 0.99, 2)
+                    product_entry = {
+                        "Restaurant_Name": restaurant_name,
+                        "Restaurant_Id": restaurant_id,
+                        "Product_Name": product_name,
+                        "Product_Id": product_id,
+                        "Addon_Name": None,
+                        "Addon_Id": None,
+                        "Final_Price": final_price
+                    }
+                    all_final_data.append(product_entry)
+
     final_data = pd.DataFrame(all_final_data)
     final_data.to_csv("output/last_restaurant_df.csv", index=False)
     return final_data
