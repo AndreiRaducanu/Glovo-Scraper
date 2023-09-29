@@ -233,45 +233,41 @@ def find_combination(product_object, basket_min_value, basket_surcharge, deliver
     SERVICE_FEE = 0.99
     product_price = product_object.price
     best_total = product_price + basket_surcharge  # Start with just the current product
-    other_products = product_object.attributes
-    items2 = other_products.items()
-
     all_addon_results = {}
-    for addon_id, product_info in items2:
-        best_total = product_price + basket_surcharge
-        addon_name = next(iter(product_info))
-        addon_price = product_info[addon_name]
+    
+    for addon_id, product_info in product_object.attributes.items():
+        addon_name, addon_price = next(iter(product_info.items()))
         total_product_and_addon = product_price + addon_price
 
         if total_product_and_addon == basket_min_value and total_product_and_addon <= best_total:
             best_total = total_product_and_addon + delivery_fee + SERVICE_FEE
             all_addon_results[addon_id] = best_total
-            # product_and_addon = ProductCombo(product_object.name, product_object.id, addon_name, addon_id, best_total)
-            # return product_and_addon
 
-        if total_product_and_addon < basket_min_value:
+        elif total_product_and_addon < basket_min_value:
             best_total = total_product_and_addon + basket_surcharge + delivery_fee + SERVICE_FEE
             all_addon_results[addon_id] = best_total
 
-        if total_product_and_addon > basket_min_value:
+        elif total_product_and_addon > basket_min_value:
             best_total = total_product_and_addon + delivery_fee + SERVICE_FEE
             all_addon_results[addon_id] = best_total
 
-    if not all_addon_results.values():
+    if not all_addon_results:
         final_price_product = product_price + basket_surcharge + delivery_fee + SERVICE_FEE
         product_object.price = final_price_product
         return product_object
+
     lowest_value = min(all_addon_results.values())
     final_price_product = product_price + basket_surcharge + delivery_fee + SERVICE_FEE
+
     if lowest_value <= final_price_product:
-        lowest_id = [key for key, value in all_addon_results.items() if value == lowest_value][0]
-        data_dict = dict(items2)[lowest_id]
-        addon_name, final_price = next(iter(data_dict.items()))
+        lowest_id = min(all_addon_results, key=all_addon_results.get)
+        addon_name, final_price = next(iter(product_object.attributes[lowest_id].items()))
         combo_object = ProductCombo(product_object.name, product_object.id, addon_name, lowest_id, lowest_value)
         return combo_object
 
     product_object.price = final_price_product
     return product_object
+
 
 
 # Takes restaurant object as arg and returns all the products in a pandas DF
@@ -513,6 +509,21 @@ def fetch_products_df(restaurant_instance):
     return product_df
 
 
+def process_final_dataframe(list_to_store_df_per_menu):
+    # Concatenate DataFrames, drop duplicates, and perform other operations
+    combined_df_final = pd.concat(list_to_store_df_per_menu, ignore_index=True)
+    combined_df_final = combined_df_final.drop_duplicates()
+    combined_df_final['Final_Price'] = combined_df_final['Final_Price'].astype(float)
+    combined_df_final.dropna(subset=['Final_Price'], inplace=True)
+    combined_df_final = combined_df_final.sort_values(by='Final_Price', ascending=True)
+    
+    # Reassign _id after sorting
+    combined_df_final['_id'] = combined_df_final.index
+    
+    combined_df_final.to_csv("output/product_data.csv", index=False)
+    return combined_df_final
+
+
 def access_restaurant_menu(complete_restaurant_df, headers):
     list_to_store_df_per_menu = []
 
@@ -573,12 +584,4 @@ def access_restaurant_menu(complete_restaurant_df, headers):
                 threads.append(thread)
             for thread in threads:
                 thread.join()
-    combined_df_final = pd.concat(list_to_store_df_per_menu, ignore_index=True)
-    combined_df_final = combined_df_final.drop_duplicates()
-    # Need unique id for MongoDB
-    combined_df_final['_id'] = combined_df_final.index
-    combined_df_final['Final_Price'] = combined_df_final['Final_Price'].astype(float)
-    combined_df_final.dropna(subset=['Final_Price'], inplace=True)
-    combined_df_final = combined_df_final.sort_values(by='Final_Price', ascending=True)
-    combined_df_final.to_csv("output/product_data.csv", index=False)
-    return combined_df_final
+    return process_final_dataframe(list_to_store_df_per_menu)
