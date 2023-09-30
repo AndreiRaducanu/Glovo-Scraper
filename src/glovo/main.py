@@ -12,7 +12,7 @@ from glovo.functions import (  # noqa E402
     access_restaurant_menu,
     create_directory,
 )
-from glovo.credentials import DB_CONNECTION  # noqa E402
+from glovo.credentials import DB_CONNECTION, DB_COLLECTION, DB_NAME  # noqa E402
 
 # define the initial header
 headers = {
@@ -52,8 +52,8 @@ if connect_db == "y":
     # Convert df to a list of dictionaries for MongoDB export
     final_df = final_df.to_dict(orient="records")
     connection_string = DB_CONNECTION
-    database_name = 'Glovo'
-    collection_name = 'complete_list'
+    database_name = DB_NAME
+    collection_name = DB_COLLECTION
     cluster = MongoClient(connection_string)
     db = cluster[database_name]
     collection = db[collection_name]
